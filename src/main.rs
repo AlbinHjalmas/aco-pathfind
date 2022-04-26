@@ -48,13 +48,17 @@ impl WindowHandler for WindowContext {
         }
 
         self.aco_map.render(self.window_size, graphics);
-        if self.iterations % 10 == 0 {
+        // if self.iterations % 5 == 0 {
             let mut got_next = false;
             while got_next == false {
                 match self.aco_map.get_next_vertice_with_exclusions(
                 self.curr_vert, &[self.path.as_slice(), self.exclusions.as_slice()].concat()) {
                     None => {
+                        if self.exclusions.len() > 150 {
+                            self.exclusions.remove(0);
+                        }
                         self.exclusions.push(self.curr_vert);
+
                         self.curr_vert = self.path.pop().unwrap();
                         got_next = false;
                     },
@@ -65,17 +69,23 @@ impl WindowHandler for WindowContext {
                     }
                 };
             }
-        }
+        // }
         self.path.windows(2).for_each(|points| {
             graphics.draw_line(
                 self.aco_map.get_vertice_coordinates(self.window_size, points[0]), 
                 self.aco_map.get_vertice_coordinates(self.window_size, points[1]),
-                3.0, 
+                1.0, 
                 Color::GREEN
             );
         });
+        graphics.draw_line(
+            self.aco_map.get_vertice_coordinates(self.window_size, *self.path.last().unwrap()), 
+            self.aco_map.get_vertice_coordinates(self.window_size, self.curr_vert),
+            1.0, 
+            Color::GREEN
+        );
         graphics.draw_circle(self.aco_map.get_vertice_coordinates(self.window_size, 
-            self.curr_vert), 10.0, Color::RED);
+            self.curr_vert), 4.0, Color::RED);
 
 
         // Store the time to be able to measure duration
@@ -108,15 +118,15 @@ impl WindowHandler for WindowContext {
 }
 
 fn main() {
-    let window = Window::new_centered("Abbes testfönster <3", (1000, 1000)).unwrap();
+    let window = Window::new_centered("Abbes testfönster <3", (1200, 1200)).unwrap();
     let mut window_context = WindowContext {
         pointer_status: PointerStatus::new(),
-        window_size: (1000, 1000),
+        window_size: (1200, 1200),
         prev_time: Instant::now(),
         accumulated_duration: Duration::new(0, 0),
         accumulated_interpolation_duration: Duration::new(0, 0),
         iterations: 0,
-        aco_map: ACOMap::new(15, 15, 0.5).expect("Failed to generate ACO map..."),
+        aco_map: ACOMap::new(100, 100, 0.5).expect("Failed to generate ACO map..."),
         curr_vert: (7, 7),
         path: Vec::new(),
         exclusions: Vec::new()
