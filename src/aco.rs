@@ -43,7 +43,6 @@ impl ACOGraph {
 }
 
 pub struct ACOMap {
-    cost_graph: ACOGraph,
     pheromone_graph: ACOGraph,
     evaporation_rate: f32
 }
@@ -53,21 +52,11 @@ impl ACOMap {
         if width == 0 || height == 0 || evaporation_rate > 1.0 {
             return None;
         }
-
         let mut aco_map = ACOMap {
-            cost_graph: ACOGraph::new(width, height),
             pheromone_graph: ACOGraph::new(width, height),
             evaporation_rate
         };
-
-        for i in 0..width {
-            for j in 0..height {
-                aco_map.set_outgoing_costs((i, j));
-            }
-        }
-
         aco_map.pheromone_graph.mat.fill(1.0);
-        
         return Some(aco_map);
     }
 
@@ -81,23 +70,17 @@ impl ACOMap {
         }
     }
 
-    fn set_outgoing_costs(&mut self, vertice: VerticeLoc) {
-        self.get_neighbours(vertice).iter().for_each(|neighbour| {
-            self.cost_graph.set_edg_value(vertice, *neighbour, ACOMap::cost(vertice, *neighbour));
-        });
-    }
-
     fn get_neighbours(&self, vertice: VerticeLoc) -> Vec<VerticeLoc> {
         let mut neighbours: Vec<VerticeLoc> = Vec::new();
         for i in &[-1, 0, 1] {
             let new_x = (vertice.0 as i32) + i;
-            if new_x < 0 || new_x >= self.cost_graph.width as i32 {
+            if new_x < 0 || new_x >= self.pheromone_graph.width as i32 {
                 // Resulting vertice will be outside map
                 continue;
             }
             for j in &[-1, 0, 1] {
                 let new_y = (vertice.1 as i32) + j;
-                if new_y < 0 || new_y >= self.cost_graph.height as i32 || (*i == 0 && *j == 0) {
+                if new_y < 0 || new_y >= self.pheromone_graph.height as i32 || (*i == 0 && *j == 0) {
                     // Resulting vertice will be outside map
                     continue;
                 }
@@ -112,13 +95,13 @@ impl ACOMap {
         let mut neighbours: Vec<VerticeLoc> = Vec::new();
         for i in &[-1, 0, 1] {
             let new_x = (vertice.0 as i32) + i;
-            if new_x < 0 || new_x >= self.cost_graph.width as i32 {
+            if new_x < 0 || new_x >= self.pheromone_graph.width as i32 {
                 // Resulting vertice will be outside map
                 continue;
             }
             for j in &[-1, 0, 1] {
                 let new_y = (vertice.1 as i32) + j;
-                if new_y < 0 || new_y >= self.cost_graph.height as i32 || (*i == 0 && *j == 0) {
+                if new_y < 0 || new_y >= self.pheromone_graph.height as i32 || (*i == 0 && *j == 0) {
                     // Resulting vertice will be outside map
                     continue;
                 }
@@ -204,15 +187,15 @@ impl ACOMap {
     }
 
     pub fn render(&self, window_size: (usize, usize), graphics: &mut Graphics2D) {
-        let x_spacing = window_size.0 as f32 / self.cost_graph.width as f32;
-        let y_spacing = (window_size.1 as f32 - x_spacing) / (self.cost_graph.height - 1) as f32;
+        let x_spacing = window_size.0 as f32 / self.pheromone_graph.width as f32;
+        let y_spacing = (window_size.1 as f32 - x_spacing) / (self.pheromone_graph.height - 1) as f32;
         let r = if x_spacing < y_spacing { x_spacing / 20.0 } else { y_spacing / 20.0 };
         let x_offs = x_spacing / 2.0;
         let y_offs = x_offs;
 
-        for i in 0..self.cost_graph.width {
+        for i in 0..self.pheromone_graph.width {
             let x = x_offs + i as f32 * x_spacing;
-            for j in 0..self.cost_graph.height {
+            for j in 0..self.pheromone_graph.height {
                 let y = y_offs + j as f32 * y_spacing;
                 graphics.draw_circle((x, y), r, Color::GRAY);
             }
@@ -220,8 +203,8 @@ impl ACOMap {
     }
 
     pub fn get_vertice_coordinates(&self, window_size: (usize, usize), vertice: VerticeLoc) -> (f32, f32) {
-        let x_spacing = window_size.0 as f32 / self.cost_graph.width as f32;
-        let y_spacing = (window_size.1 as f32 - x_spacing) / (self.cost_graph.height - 1) as f32;
+        let x_spacing = window_size.0 as f32 / self.pheromone_graph.width as f32;
+        let y_spacing = (window_size.1 as f32 - x_spacing) / (self.pheromone_graph.height - 1) as f32;
         let x_offs = x_spacing / 2.0;
         let y_offs = x_offs;
         let x = x_offs + vertice.0 as f32 * x_spacing;
