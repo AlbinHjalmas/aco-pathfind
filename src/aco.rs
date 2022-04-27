@@ -151,35 +151,18 @@ impl ACOMap {
 
     pub fn get_next_vertice_with_exclusions(&self, current: VerticeLoc, exclusions: &Vec<VerticeLoc>) -> Option<VerticeLoc> {
         let mut likelyhood_sum = 0.0;
-        let mut neighbours: Vec<(f32, VerticeLoc)> = self.get_neighbours_with_exclusions(current, exclusions).iter().map(|neighbour| {
+        let mut neighbours = VerticeProbabilities { prob_vertices: self.get_neighbours_with_exclusions(current, exclusions).iter().map(|neighbour| {
             let likelyhood = self.get_likelyhood_factor(current, *neighbour);
             likelyhood_sum += likelyhood;
             (likelyhood, *neighbour)
-        }).collect();
+        }).collect() };
 
-        if neighbours.len() == 0 {
+        if neighbours.prob_vertices.len() == 0 {
             return None;
         }
         
-        neighbours.iter_mut().for_each(|pair| pair.0 = pair.0 / likelyhood_sum);
-        neighbours.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        let mut probability_sum = 0.0;
-        neighbours.iter_mut().for_each(|mut pair| {
-            probability_sum += pair.0;
-            pair.0 = probability_sum;
-        });
-
-        let mut rng = thread_rng();
-        let random: f32 = rng.gen();
-        let mut previous = 0.0;
-        for pair in neighbours {
-            if random >= previous && random < pair.0 {
-                return Some(pair.1);
-            } else {
-                previous = pair.0;
-            }
-        }
-        None
+        neighbours.prob_vertices.iter_mut().for_each(|pair| pair.0 = pair.0 / likelyhood_sum);
+        neighbours.roulette()
     }
 
     fn find_path(v0: VerticeLoc, v1: VerticeLoc) -> Vec<VerticeLoc> {
@@ -211,4 +194,94 @@ impl ACOMap {
         let y = y_offs + vertice.1 as f32 * y_spacing;
         (x, y)
     }
+}
+
+type VerticeProbability = (f32, VerticeLoc);
+
+struct VerticeProbabilities {
+    prob_vertices: Vec<VerticeProbability>
+}
+
+impl VerticeProbabilities {
+    fn new() -> Self {
+        VerticeProbabilities { prob_vertices: Vec::new() }
+    }
+
+    fn sort(&mut self) {
+        self.prob_vertices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    }
+
+    fn roulette(&self) -> Option<VerticeLoc> {
+        let mut vec = VerticeProbabilities::new();
+        vec.prob_vertices.clone_from(&self.prob_vertices);
+        vec.sort();
+        let mut probability_sum = 0.0;
+        vec.prob_vertices.iter_mut().for_each(|mut pair| {
+            probability_sum += pair.0;
+            pair.0 = probability_sum;
+        });
+
+        let mut rng = thread_rng();
+        let random: f32 = rng.gen::<f32>() * probability_sum;
+        let mut previous = 0.0;
+        for pair in &vec.prob_vertices {
+            if random >= previous && random < pair.0 {
+                return Some(pair.1);
+            } else {
+                previous = pair.0;
+            }
+        }
+        None
+    }
+}
+
+#[test]
+fn test_vertice_probabilities_sort() {
+    let mut probabilities = VerticeProbabilities::new();
+    probabilities.prob_vertices.push((0.5, (5, 0)));
+    probabilities.prob_vertices.push((0.2, (2, 0)));
+    probabilities.prob_vertices.push((0.3, (3, 0)));
+    assert_eq!(probabilities.prob_vertices, vec![(0.5, (5, 0)), (0.2, (2, 0)), (0.3, (3, 0))]);
+    probabilities.sort();
+    assert_eq!(probabilities.prob_vertices, vec![(0.2, (2, 0)), (0.3, (3, 0)), (0.5, (5, 0))]);
+    probabilities.sort();
+    assert_eq!(probabilities.prob_vertices, vec![(0.2, (2, 0)), (0.3, (3, 0)), (0.5, (5, 0))]);
+}
+
+#[test]
+fn test_vertice_probabilities_roulette() {
+    let mut probabilities = VerticeProbabilities::new();
+    probabilities.prob_vertices.push((0.5, (5, 0)));
+    probabilities.prob_vertices.push((0.2, (2, 0)));
+    probabilities.prob_vertices.push((0.3, (3, 0)));
+
+    let mut cnt_02 = 0;
+    let mut cnt_03 = 0;
+    let mut cnt_05 = 0;
+
+    const ITERATIONS: usize = 1000000;
+
+    (0..ITERATIONS).into_iter().for_each(|_| {
+        match probabilities.roulette() {
+            Some(v) => {
+                match v.0 {
+                    2 => cnt_02 += 1,
+                    3 => cnt_03 += 1,
+                    5 => cnt_05 += 1,
+                    _ => ()
+                }
+            },
+            None => ()
+        }
+    });
+
+    let frq_02 = (cnt_02 as f32 / ITERATIONS as f32) * 10.0;
+    let frq_03 = (cnt_03 as f32 / ITERATIONS as f32) * 10.0;
+    let frq_05 = (cnt_05 as f32 / ITERATIONS as f32) * 10.0;
+
+    assert_eq!(frq_02.round() as u32, 2);
+    assert_eq!(frq_03.round() as u32, 3);
+    assert_eq!(frq_05.round() as u32, 5);
+
+    println!("freq(0.2) = {}, freq(0.3) = {}, freq(0.5) = {}", frq_02.round() as u32, frq_03.round() as u32, frq_05.round() as u32);
 }
