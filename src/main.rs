@@ -1,5 +1,6 @@
 mod aco;
 use aco::{ACOMap, VerticeLoc};
+mod roulette;
 
 use std::time::{Instant, Duration};
 
@@ -25,7 +26,6 @@ struct WindowContext {
     window_size: (usize, usize),
     prev_time: Instant,
     accumulated_duration: Duration,
-    accumulated_interpolation_duration: Duration,
     iterations: usize,
 
     aco_map: ACOMap,
@@ -96,11 +96,11 @@ impl WindowHandler for WindowContext {
         helper.request_redraw();
     }
 
-    fn on_mouse_move(&mut self, helper: &mut WindowHelper<()>, position: Vector2<f32>) {
+    fn on_mouse_move(&mut self, _helper: &mut WindowHelper<()>, position: Vector2<f32>) {
         self.pointer_status.position = (position.x, position.y);
     }
 
-    fn on_mouse_button_down(&mut self, helper: &mut WindowHelper<()>, button: MouseButton) {
+    fn on_mouse_button_down(&mut self, _helper: &mut WindowHelper<()>, button: MouseButton) {
         match button {
             MouseButton::Left => self.pointer_status.l_btn_pushed = true,
             MouseButton::Right => self.pointer_status.r_btn_pushed = true,
@@ -108,7 +108,7 @@ impl WindowHandler for WindowContext {
         }
     }
 
-    fn on_mouse_button_up(&mut self, helper: &mut WindowHelper<()>, button: speedy2d::window::MouseButton) {
+    fn on_mouse_button_up(&mut self, _helper: &mut WindowHelper<()>, button: speedy2d::window::MouseButton) {
         match button {
             MouseButton::Left => self.pointer_status.l_btn_pushed = false,
             MouseButton::Right => self.pointer_status.r_btn_pushed = false,
@@ -118,13 +118,12 @@ impl WindowHandler for WindowContext {
 }
 
 fn main() {
-    let window = Window::new_centered("Abbes testfönster <3", (1200, 1200)).unwrap();
+    let window = Window::new_centered("ACO Pathfind Simulation", (1200, 1200)).unwrap();
     let mut window_context = WindowContext {
         pointer_status: PointerStatus::new(),
         window_size: (1200, 1200),
         prev_time: Instant::now(),
         accumulated_duration: Duration::new(0, 0),
-        accumulated_interpolation_duration: Duration::new(0, 0),
         iterations: 0,
         aco_map: ACOMap::new(100, 100, 0.5).expect("Failed to generate ACO map..."),
         curr_vert: (7, 7),
@@ -132,6 +131,5 @@ fn main() {
         exclusions: Vec::new()
     };
     window_context.path.push(window_context.curr_vert);
-
     window.run_loop(window_context);
 }

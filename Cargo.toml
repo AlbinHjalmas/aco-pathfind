@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 speedy2d = "1"
-nalgebra = "0.30"
+nalgebra = "0.25.*"
 rand = "0.8.5"
